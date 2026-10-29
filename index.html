@@ -302,6 +302,7 @@ tr.arrastando td{ border-top: 2px solid var(--gold); border-bottom: 2px solid va
 </style>
 </head>
 <body>
+<div id="omnia-aviso" style="position:sticky;top:0;z-index:9999;background:#2f5e57;color:#fff;padding:10px 14px;font:600 14px/1.4 system-ui,sans-serif;text-align:center">Este app foi substituído pelo <a href="https://painel.srv1805301.hstgr.cloud" style="color:#fff;text-decoration:underline">OMNIA</a>. Aqui é só consulta do histórico até 29/10/2026: nada que você mudar será salvo. Lance e edite no OMNIA.</div>
 
 <!-- ============ LOGIN ============ -->
 <div id="login-screen">
@@ -483,7 +484,7 @@ async function bootRetornoOAuth(){
   const pendente = localStorage.getItem('financas_pendente');
   try{
     await bootAfterLogin();
-    if(pendente){
+    if(pendente && !SO_LEITURA){
       try{
         const s = JSON.parse(pendente);
         if(s && s.years && Object.keys(s.years).length){
@@ -663,7 +664,12 @@ async function driveFindFile(){
   return (data.files && data.files[0]) || null;
 }
 
+// Desde 29/10/2026 as finanças ficam no OMNIA: este app só consulta o histórico e nunca grava no Drive.
+const SO_LEITURA = true;
+const MSG_SO_LEITURA = 'Este app é só consulta: as finanças agora ficam no OMNIA.';
+
 async function driveCreateFile(content){
+  if(SO_LEITURA) throw new Error(MSG_SO_LEITURA);
   const token = await ensureToken();
   const boundary = 'financas_boundary_' + Date.now();
   const metadata = { name: CONFIG.DRIVE_FILE_NAME, mimeType: 'application/json' };
@@ -682,6 +688,7 @@ async function driveCreateFile(content){
 }
 
 async function driveUpdateFile(fileId, content){
+  if(SO_LEITURA) throw new Error(MSG_SO_LEITURA);
   const token = await ensureToken();
   const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
     method: 'PATCH',
@@ -753,6 +760,12 @@ async function bootAfterLogin(){
 }
 
 function scheduleSave(){
+  if(SO_LEITURA){
+    setSaveStatus('error');
+    document.getElementById('save-text').textContent = 'Não salvo: só consulta (use o OMNIA)';
+    if(typeof toast === 'function') toast('Não foi salvo. Este app agora é só consulta: lance no OMNIA.');
+    return;
+  }
   setSaveStatus('saving');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
